@@ -2,6 +2,9 @@ function [botSim] = localise(botSim,map,target)
 %This function returns botSim, and accepts, botSim, a map and a target.
 %LOCALISE Template localisation function
 
+% UltraScan Returns returns two arrays, one with the distances and one 
+% with the crossing points of the scan rays.'
+
 %% setup code
 %you can modify the map to take account of your robots configuration space
 modifiedMap = map; %you need to do this modification yourself
@@ -11,13 +14,18 @@ botSim.setMap(modifiedMap);
 %generate some random particles inside the map
 num =300; % number of particles
 ms = zeros(3, num); 
-% ms = struct( 'pos',{},'ang',{},'distance',{},'crossingPoint',{}) %% Struct containoing measurements obtained from particles
+var = 300; % variance for Gussan
+sqrt2PiVar = sqrt(2*pi*var); %precompute to speed up calculation
+
+% ms = struct( 'pos',{},'ang',{},'distance',{},'crossingPoint',{}) %% Struct 
+% containoing measurements obtained from particles
 
 particles(num,1) = BotSim; %how to set up a vector of objects
 for i = 1:num
-    particles(i) = BotSim(modifiedMap);  %each particle should use the same map as the botSim object
+    particles(i) = BotSim(modifiedMap);  % each particle should use the same 
+                                         % map as the botSim object
     particles(i).randomPose(0); %spawn the particles in random locations
-    ms(:,i) = [particles(i).getBotPos() particles(i).getBotAng()]
+    ms(:,i) = [particles(i).getBotPos() particles(i).getBotAng()];
     particles(i).drawBot(3);
 end
 
@@ -26,7 +34,8 @@ end
 % 
 % for i = 1:num
 %     [distance crossingPoint]  = particles(i).ultraScan();
-%     ms(:,i) = [particles(i).getBotPos() particles(i).getBotAng() distance crossingPoint];
+%     ms(:,i) = [particles(i).getBotPos() particles(i).getBotAng() 
+% distance crossingPoint];
 % %     
 % %     fprintf('%d --- pos = %d ang = %d\n',i, ms(1,i), ms(2,i));
 %     particles(i).drawBot(3); %draw particle with line length 3 and default color
@@ -35,28 +44,35 @@ end
 maxNumOfIterations = 30;
 n = 0;
 converged =0; %The filter has not converged yet
-botSim.setScanConfig(botSim.generateScanConfig(10)); 
+botSim.setScanConfig(botSim.generateScanConfig(6)); 
 botSim.drawScanConfig();  %draws the scan configuration to verify it is correct
 botSim.drawBot(5);
+partWeight = zeros(num,1);
 % [botSdist botScross] = botSim.ultraScan() ;
-% fprintf(' BotSim distance = %d BotSim crossingPoint = %d\n', botSdist, botScross);
+%fprintf(' BotSim distance = %d BotSim crossingPoint = %d\n', botSdist, botScross);
 % WHICH IS MY REAL BOTSIM THAN???  
 
 while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
     n = n+1; %increment the current number of iterations
-    botScan = botSim.ultraScan(); %get a scan from the real robot.
+    BScan = botSim.ultraScan() %get a scan from the real robot.
 
     %% Write code for updating your particles scans
     for i=1:num
         if particles(i).insideMap() == 1
-        PartScan(:,i) = particles(i).ultraScan();
-        % keep particle
-%         else
-        % discard particle??
+            PScan(:,i) = particles(i).ultraScan();
+            %% Write code for scoring your particles 
+            difference = sum(norm(BScan - PScan(:,i)));
+            denom = 2*var;
+            partWeight(i) = (1 /sqrt2PiVar) * exp(-(difference)^2 /denom);
+        else
+            partWeight(i) = 0;
     end
+   
+    allweights = sum(partWeight);
     
-    %% Write code for scoring your particles    
-    
+    for i = 1:num
+        partWeight(i) = partWeight(i)/allweights
+    end
     
     %% Write code for resampling your particles
     
@@ -64,7 +80,8 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
     %% Write code to check for convergence   
 	
 
-    %% Write code to take a percentage of your particles and respawn in randomised locations (important for robustness)	
+    %% Write code to take a percentage of your particles and respawn in 
+    %  randomised locations (important for robustness)	
     
     
     %% Write code to decide how to move next
@@ -82,10 +99,10 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
     %only draw if you are in debug mode or it will be slow during marking
     if botSim.debug()
         hold off; %the drawMap() function will clear the drawing when hold is off
-        botSim.drawMap(); %drawMap() turns hold back on again, so you can draw the bots
+        botSim.drawMap();%drawMap() turns hold back on again -> you can draw the bots
         botSim.drawBot(30,'g'); %draw robot with line length 30 and green
         for i =1:num
-            particles(i).drawBot(3); %draw particle with line length 3 and default color
+            particles(i).drawBot(3); %draw particle with line length 3
         end
         drawnow;
     end
