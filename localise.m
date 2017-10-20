@@ -14,8 +14,6 @@ botSim.setMap(modifiedMap);
 %generate some random particles inside the map
 num =300; % number of particles
 ms = zeros(3, num); 
-var = 300; % variance for Gussan
-sqrt2PiVar = sqrt(2*pi*var); %precompute to speed up calculation
 
 % ms = struct( 'pos',{},'ang',{},'distance',{},'crossingPoint',{}) %% Struct 
 % containoing measurements obtained from particles
@@ -25,6 +23,7 @@ for i = 1:num
     particles(i) = BotSim(modifiedMap);  % each particle should use the same 
                                          % map as the botSim object
     particles(i).randomPose(0); %spawn the particles in random locations
+    particles(i).setScanConfig(generateScanConfig(particles(i),6));
     ms(:,i) = [particles(i).getBotPos() particles(i).getBotAng()];
     particles(i).drawBot(3);
 end
@@ -44,13 +43,15 @@ end
 maxNumOfIterations = 30;
 n = 0;
 converged =0; %The filter has not converged yet
+var = 15; % variance for Gussian
+sqrt2PiVar = sqrt(2*pi*var);
+
 botSim.setScanConfig(botSim.generateScanConfig(6)); 
 botSim.drawScanConfig();  %draws the scan configuration to verify it is correct
 botSim.drawBot(5);
 partWeight = zeros(num,1);
 % [botSdist botScross] = botSim.ultraScan() ;
-%fprintf(' BotSim distance = %d BotSim crossingPoint = %d\n', botSdist, botScross);
-% WHICH IS MY REAL BOTSIM THAN???  
+%fprintf(' BotSim distance = %d BotSim crossingPoint = %d\n', botSdist, botScross);  
 
 while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
     n = n+1; %increment the current number of iterations
@@ -61,22 +62,27 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
         if particles(i).insideMap() == 1
             PScan(:,i) = particles(i).ultraScan();
             %% Write code for scoring your particles 
-            difference = sum(norm(BScan - PScan(:,i)));
+            difference = sqrt(sum((BScan - PScan(:,i)).^2));
             denom = 2*var;
-            partWeight(i) = (1 /sqrt2PiVar) * exp(-(difference)^2 /denom);
+            partWeight(i) = (1 /sqrt2PiVar) * exp(-(difference)^2 /denom)
         else
-            partWeight(i) = 0;
+            partWeight(i) = 0.000001;
+        end
     end
-   
+%     disp( max(partWeight))
+%     disp(min(partWeight))
+    
     allweights = sum(partWeight);
+    for i = 1:num
+        partWeight(i) = partWeight(i)/allweights;
+    end
+
+    %% Write code for resampling your particles
+    cumulativeSum = cumsum(partWeight)
     
     for i = 1:num
-        partWeight(i) = partWeight(i)/allweights
+        if (rand )
     end
-    
-    %% Write code for resampling your particles
-    
-    
     %% Write code to check for convergence   
 	
 
