@@ -90,10 +90,10 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
     for i = 1:num
         particles(i).setBotPos([resPart(i,1), resPart(i,2)]);
         particles(i).setBotAng(resPart(i,3));
-        turn = randi(100)/20;
-        move = randi(100)/20;
-        particles(i).turn(turn);  
-        particles(i).move(move);
+        turn = 0.5;
+        move = 2;
+        botSim.turn(turn); %turn the real robot.  
+        botSim.move(move);
     end 
     %% Write code to check for convergence   
 	
