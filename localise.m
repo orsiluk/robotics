@@ -100,7 +100,7 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
 
     %% Write code to take a percentage of your particles and respawn in 
     %  randomised locations (important for robustness)
-    perc = 0.1*num
+    perc = 0.05*num
     for i=1:perc
         particles(randi(num)).randomPose(0);
     end    
