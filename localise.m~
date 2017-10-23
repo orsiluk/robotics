@@ -13,7 +13,8 @@ botSim.setMap(modifiedMap);
 
 %generate some random particles inside the map
 num =300; % number of particles
-ms = zeros(3, num); 
+partPos = zeros(3, num);
+dist = zeros(3, num);
 
 % ms = struct( 'pos',{},'ang',{},'distance',{},'crossingPoint',{}) %% Struct 
 % containoing measurements obtained from particles
@@ -25,7 +26,7 @@ for i = 1:num
                                          % map as the botSim object
     particles(i).randomPose(0); %spawn the particles in random locations
     particles(i).setScanConfig(generateScanConfig(particles(i),6));
-    ms(:,i) = [particles(i).getBotPos() particles(i).getBotAng()];
+    partPos(:,i) = [particles(i).getBotPos() particles(i).getBotAng()];
     particles(i).drawBot(3);
 end
 
@@ -44,8 +45,9 @@ end
 maxNumOfIterations = 30;
 n = 0;
 converged =0; %The filter has not converged yet
-var = 15; % variance for Gussian
+var = 10; % variance for Gussian
 sqrt2PiVar = sqrt(2*pi*var);
+damping = 0.000000001; %damping factor
 
 botSim.setScanConfig(botSim.generateScanConfig(6)); 
 botSim.drawScanConfig();  %draws the scan configuration to verify it is correct
@@ -65,9 +67,9 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
             %% Write code for scoring your particles 
             difference = sqrt(sum((BScan - PScan(:,i)).^2));
             denom = 2*var;
-            partWeight(i) = (1 /sqrt2PiVar) * exp(-(difference)^2 /denom);
+            partWeight(i) = (1 /sqrt2PiVar) * exp(-(difference)^2 /denom)+damping;
         else
-            partWeight(i) = 0.000001;
+            partWeight(i) = 0;
         end
     end
 %     disp( max(partWeight))
@@ -79,7 +81,7 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
     end
 
     %% Write code for resampling your particles
-    cumulativeSum = cumsum(partWeight)
+    cumulativeSum = cumsum(partWeight);
     
     for i = 1:num
         partic = find(rand() <= cumulativeSum,1);
@@ -90,23 +92,44 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
     for i = 1:num
         particles(i).setBotPos([resPart(i,1), resPart(i,2)]);
         particles(i).setBotAng(resPart(i,3));
-        turn = 0.5;
-        move = 2;
-        botSim.turn(turn); %turn the real robot.  
-        botSim.move(move);
+        turn = randi(2);
+        move = randi(3);
+        particles(i).turn(turn);  
+        particles(i).move(move);
     end 
-    %% Write code to check for convergence   
-	
+    %% Write code to check for convergence  
+    for i = 1:num
+        partPos(:,i) = [particles(i).getBotPos() particles(i).getBotAng()];
+    end
+    meanPosX = mean(partPos(1,:));
+    meanPosY = mean(partPos(2,:));
+    meanAng = mean(partPos(3,:));
+    for i = 1:num
+        dist(:,i) = [abs(partPos(1,i)-meanPosX) abs(partPos(2,i)-meanPosY) abs(partPos(3,i)-meanAng)];
+    end
+    
+    distX = sum(dist(1,:)<2)
+    distY = sum(dist(2,:)<2)
+    distAng = sum(dist(1,:)<1)
+    
+    if (distX>num*0.8 && distY>200 && distAng>200)
+%     if (distX>(num*0.8) && distY>(num*0.8))
+        converged = 1
+    end
+% 	get the mean of the locations and the turning point and assign it to
+% 	the main bot and suppose it is there if k percent of bots is there, it
+% 	converged
 
     %% Write code to take a percentage of your particles and respawn in 
     %  randomised locations (important for robustness)
-    perc = 0.1*num
+    perc = 0.05*num
     for i=1:perc
         particles(randi(num)).randomPose(0);
     end    
     
     %% Write code to decide how to move next
     % here they just turn in cicles as an example
+%     do A* and make it move :D
     turn = 0.5;
     move = 2;
     botSim.turn(turn); %turn the real robot.  
