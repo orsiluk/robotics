@@ -30,17 +30,6 @@ for i = 1:num
     particles(i).drawBot(3);
 end
 
-% [botSdist botScross] = botSim.ultraScan() ;
-% fprintf(' BotSim distance = %d BotSim crossingPoint = %d\n', botSdist, botScross);
-% 
-% for i = 1:num
-%     [distance crossingPoint]  = particles(i).ultraScan();
-%     ms(:,i) = [particles(i).getBotPos() particles(i).getBotAng() 
-% distance crossingPoint];
-% %     
-% %     fprintf('%d --- pos = %d ang = %d\n',i, ms(1,i), ms(2,i));
-%     particles(i).drawBot(3); %draw particle with line length 3 and default color
-% end
 %% Localisation code
 maxNumOfIterations = 60;
 n = 0;
@@ -88,16 +77,33 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
         resPart(i,1:2) = particles(partic).getBotPos();
         resPart(i, 3) = particles(partic).getBotAng();
     end
-    
+
     for i = 1:num
         particles(i).setBotPos([resPart(i,1), resPart(i,2)]);
         particles(i).setBotAng(resPart(i,3));
         turn = randi(2);
-%       turn = randi([resPart(i,3)-0.5 resPart(i,3)+0.5]) % Might be worth
+        % Might be worth
 %       looking into how to get direction in +- 0.5 or something (it's a 
 %       circle tho, so that's kinda a problem because it doesn't understand 
 %       negative)
-        move = randi(2);
+%         bitmin = resPart(i,3)-0.2;
+%         bitmax = resPart(i,3)+0.2;
+%         
+%         if (bitmin<0)
+%             bitmin = 2 + bitmin;
+%         end
+%         if (bitmax> 2)
+%             bitmax = resPart(i,3)+0.2 - 2;
+%         end
+%         bitmin
+%         bitmax
+%         if bitmin<bitmax    
+%             turn = randi([bitmin bitmax]);
+%         else 
+%             turn = randi([bitmax bitmin]);
+%         end
+
+        move = randi(1);
         particles(i).turn(turn);  
         particles(i).move(move);
     end 
@@ -116,7 +122,7 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
     distY = sum(dist(2,:)<2)
     distAng = sum(dist(1,:)<1)
     
-    if (distX>(num*0.8) && distY>(num*0.8) && distAng>(num*0.8))
+    if (distX>(num*0.9) && distY>(num*0.9) && distAng>(num*0.9))
 %     if (distX>(num*0.8) && distY>(num*0.8))
         converged = 1
     end
@@ -126,7 +132,7 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
 
     %% Write code to take a percentage of your particles and respawn in 
     %  randomised locations (important for robustness)
-    perc = 0.05*num
+    perc = 0.10*num
     for i=1:perc
         particles(randi(num)).randomPose(0);
     end    
@@ -134,6 +140,11 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
     %% Write code to decide how to move next
     % here they just turn in cicles as an example
 %     do A* and make it move :D
+    
+    for i=1:perc
+        findpath(i)=randomPose(0);
+    end
+    
     turn = 0.5;
     move = 2;
     botSim.turn(turn); %turn the real robot.  
