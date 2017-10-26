@@ -169,29 +169,37 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
         end
         % Create graph with edges
         l = 0;
-        edges = zeros(3,nrGraph)
+        edges = zeros(5,nrGraph);
+        mapShape = size(map)
         for j = 1:nrGraph
             for k = j: nrGraph
                 if (randCord(:,j) ~= [-1 -1]) 
                     if (randCord(:,k) ~= [-1 -1])
-                        l = l+1;
+                        crashAndBurn = 0;
+                        for m = 1:mapShape(1)
+                            if m == mapShape(1)
+                                borderX=[randCord(1,j) randCord(1,k) map(m,1) map(1,1)];
+                                borderY=[randCord(2,j) randCord(2,k) map(m,2) map(2,1)];
+                            else
+                                borderX=[randCord(1,j) randCord(1,k) map(m,1) map(m+1,1)];
+                                borderY=[randCord(2,j) randCord(2,k) map(m,2) map(m+1,2)];
+                            end
+                            inter  = intersect(borderX, borderY);
+                            if inter == 1
+                                crashAndBurn = 1
+                                break
+                            end
+                        end
                         
-                        borderX=[randCord(1,j) randCord(1,k) x3 x4];
-                        borderY=[randCord(2,j) randCord(2,k) y3 y4];
-
-                        inter  = intersect(borderX, borderY)
-                        if inter
-                            
-                            edges(:,l)= [j,k, pdist([randCord(:,j) randCord(:,k)],'euclidean')] ;
-                 
+                        if ~crashAndBurn
+                            l = l+1;
+                            edges(:,l)= [randCord(1,j),randCord(2,j),randCord(1,k),randCord(2,k), pdist([randCord(:,j) randCord(:,k)],'euclidean')] ;             
                         end
                     end
                 end
             end
         end
-        
 
-        edges
     end 
     turn = 0.5;
     move = 2;
@@ -220,6 +228,10 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
                     plot(randCord(1,i), randCord(2,i), 'b*')
                 end
             end
+            
+            for i = 1:size(edges)
+                plot([edges(1,i) edges(2,i)], [edges(3,i) edges(4,i)])
+            end
         end
 %         meanPosX = mean(partPos(1,:));
 %         meanPosY = mean(partPos(2,:));
@@ -242,9 +254,9 @@ function line = intersect(borderX, borderY)
     deter2=det([1,1,1;borderX(1),borderX(3),borderX(4);borderY(1),borderY(3),borderY(4)])*det([1,1,1;borderX(2),borderX(3),borderX(4);borderY(2),borderY(3),borderY(4)]);
 
     if(deter1<=0 & deter2<=0)
-    line=1         %If lines intesect
+    line=1;         %If lines intesect
     else
-    line=0
+    line=0;
     end
 end
 
