@@ -44,7 +44,7 @@ numberOfrepeats = 1;
 startPositions =  [20,20;30,20;50,70 ]; %These will change
 targetPositions = [80,80;100,20;230,70]; %These will change
 
-adminKey = rand(1); %During marking another key will be used ;)
+adminKey = 0 %rand(1); %During marking another key will be used ;)
 
 resultsTime = zeros(size(maps,1),size(noiseLevel,3),numberOfrepeats);
 resultsDis = resultsTime;

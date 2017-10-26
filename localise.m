@@ -1,9 +1,11 @@
 function [botSim] = localise(botSim,map,target)
+
 %This function returns botSim, and accepts, botSim, a map and a target.
 %LOCALISE Template localisation function
 
 % UltraScan Returns returns two arrays, one with the distances and one 
 % with the crossing points of the scan rays.'
+
 
 %% setup code
 %you can modify the map to take account of your robots configuration space
@@ -16,11 +18,14 @@ num =300; % number of particles
 partPos = zeros(3, num);
 dist = zeros(3, num);
 
-% ms = struct( 'pos',{},'ang',{},'distance',{},'crossingPoint',{}) %% Struct 
-% containoing measurements obtained from particles
-
 particles(num,1) = BotSim; %how to set up a vector of objects
 resPart = zeros(num, 3); % position(1,2), angle(3)
+
+pathBot = BotSim(modifiedMap);
+pathBot.setScanConfig(generateScanConfig(pathBot,6));
+
+nrGraph = 50;
+randCord = zeros(2, nrGraph); %random coordonates on the map to find shortest path
 for i = 1:num
     particles(i) = BotSim(modifiedMap);  % each particle should use the same 
                                          % map as the botSim object
@@ -118,11 +123,11 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
         dist(:,i) = [abs(partPos(1,i)-meanPosX) abs(partPos(2,i)-meanPosY) abs(partPos(3,i)-meanAng)];
     end
     
-    distX = sum(dist(1,:)<2)
-    distY = sum(dist(2,:)<2)
-    distAng = sum(dist(1,:)<1)
+    distX = sum(dist(1,:)<2);
+    distY = sum(dist(2,:)<2);
+    distAng = sum(dist(1,:)<1);
     
-    if (distX>(num*0.9) && distY>(num*0.9) && distAng>(num*0.9))
+    if (distX>(num*0.85) && distY>(num*0.85) && distAng>(num*0.85))
 %     if (distX>(num*0.8) && distY>(num*0.8))
         converged = 1
     end
@@ -132,19 +137,62 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
 
     %% Write code to take a percentage of your particles and respawn in 
     %  randomised locations (important for robustness)
-    perc = 0.10*num
+    perc = 0.10*num;
     for i=1:perc
         particles(randi(num)).randomPose(0);
     end    
     
     %% Write code to decide how to move next
     % here they just turn in cicles as an example
-%     do A* and make it move :D
-    
-    for i=1:perc
-        findpath(i)=randomPose(0);
-    end
-    
+    %     do A* and make it move :D
+    % I am going to create 100 random particles and exclude the ones that 
+    % are outside the mapthan create a fully connected graph and find the 
+    % shortest path from start to end
+    if converged == 1
+
+        maxX = max(map(:,1));
+        maxY = max(map(:,2));
+        minX = min(map(:,1));
+        minY = min(map(:,2));  
+
+        start = [meanPosX, meanPosY]; % for now we leave the starting pos at this,
+                                      % later set it to mean of closest
+                                      % particles
+
+        for i=1:nrGraph
+            randCord(:,i)= [randi([minX,maxX]) randi([minY, maxY])] ;
+            pathBot.setBotPos(randCord(:,i)); 
+            if pathBot.insideMap() == 0 % checking if point is inside the map 
+                                        % if not, set values to [-1 -1]
+                randCord(:,i) = [-1 -1];
+            end  
+        end
+        % Create graph with edges
+        l = 0;
+        edges = zeros(3,nrGraph)
+        for j = 1:nrGraph
+            for k = j: nrGraph
+                if (randCord(:,j) ~= [-1 -1]) 
+                    if (randCord(:,k) ~= [-1 -1])
+                        l = l+1;
+                        
+                        borderX=[randCord(1,j) randCord(1,k) x3 x4];
+                        borderY=[randCord(2,j) randCord(2,k) y3 y4];
+
+                        inter  = intersect(borderX, borderY)
+                        if inter
+                            
+                            edges(:,l)= [j,k, pdist([randCord(:,j) randCord(:,k)],'euclidean')] ;
+                 
+                        end
+                    end
+                end
+            end
+        end
+        
+
+        edges
+    end 
     turn = 0.5;
     move = 2;
     botSim.turn(turn); %turn the real robot.  
@@ -156,14 +204,50 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
     
     %% Drawing
     %only draw if you are in debug mode or it will be slow during marking
+    pred = BotSim(modifiedMap);
+    pred.setScanConfig(generateScanConfig(pred,6));
     if botSim.debug()
         hold off; %the drawMap() function will clear the drawing when hold is off
         botSim.drawMap();%drawMap() turns hold back on again -> you can draw the bots
         botSim.drawBot(30,'g'); %draw robot with line length 30 and green
-        for i =1:num
-            particles(i).drawBot(3); %draw particle with line length 3
+%         for i =1:num
+%             particles(i).drawBot(3); %draw particle with line length 3
+%         end
+        if converged == 1
+            
+            for i = 1:nrGraph
+                if randCord(:,i) ~= [-1 -1]
+                    plot(randCord(1,i), randCord(2,i), 'b*')
+                end
+            end
         end
+%         meanPosX = mean(partPos(1,:));
+%         meanPosY = mean(partPos(2,:));
+%         meanAng = mean(partPos(3,:));
+        
+        pred.setBotPos([meanPosX, meanPosY]);
+        pred.setBotAng(meanAng);
+        pred.drawBot(15);
         drawnow;
     end
 end
 end
+
+%%
+
+function line = intersect(borderX, borderY)
+%     borderX=[x1 x2 x3 x4];
+%     borderY=[y1 y2 y3 y4];
+    deter1=det([1,1,1;borderX(1),borderX(2),borderX(3);borderY(1),borderY(2),borderY(3)])*det([1,1,1;borderX(1),borderX(2),borderX(4);borderY(1),borderY(2),borderY(4)]);
+    deter2=det([1,1,1;borderX(1),borderX(3),borderX(4);borderY(1),borderY(3),borderY(4)])*det([1,1,1;borderX(2),borderX(3),borderX(4);borderY(2),borderY(3),borderY(4)]);
+
+    if(deter1<=0 & deter2<=0)
+    line=1         %If lines intesect
+    else
+    line=0
+    end
+end
+
+% do average only in the area where the density is the highest not the
+% whole map 
+% 
