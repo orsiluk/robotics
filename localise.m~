@@ -24,7 +24,7 @@ resPart = zeros(num, 3); % position(1,2), angle(3)
 pathBot = BotSim(modifiedMap);
 pathBot.setScanConfig(generateScanConfig(pathBot,6));
 
-nrGraph = 20;
+nrGraph = 50;
 randCord = zeros(2, nrGraph); %random coordonates on the map to find shortest path
 for i = 1:num
     particles(i) = BotSim(modifiedMap);  % each particle should use the same 
@@ -186,13 +186,14 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
                             end
                             inter  = intersect(borderX, borderY);
                             if inter == 1
-                                crashAndBurn = 1;
+                                crashAndBurn = 1
                                 break
                             end
-                        end                        
+                        end
+                        
                         if ~crashAndBurn
                             l = l+1;
-                            edges(:,l)= [randCord(1,j),randCord(2,j),randCord(1,k),randCord(2,k), pdist([randCord(:,j) randCord(:,k)],'euclidean')];             
+                            edges(:,l)= [randCord(1,j),randCord(2,j),randCord(1,k),randCord(2,k), pdist([randCord(:,j) randCord(:,k)],'euclidean')]             
                         end
                     end
                 end
@@ -228,8 +229,8 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
                 end
             end
             
-            for i = 1:l
-                plot([edges(1,i) edges(3,i)], [edges(2,i) edges(4,i)],'-o')
+            for i = 1:size(edges)
+                plot([edges(i,1) edges(i,1)], [edges(3,i) edges(4,i)],'-o')
             end
         end
 %         meanPosX = mean(partPos(1,:));
