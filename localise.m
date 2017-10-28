@@ -24,7 +24,7 @@ resPart = zeros(num, 3); % position(1,2), angle(3)
 pathBot = BotSim(modifiedMap);
 pathBot.setScanConfig(generateScanConfig(pathBot,6));
 
-nrGraph = 20;
+nrGraph = 50;
 randCord = zeros(2, nrGraph); %random coordonates on the map to find shortest path
 for i = 1:num
     particles(i) = BotSim(modifiedMap);  % each particle should use the same 
@@ -155,11 +155,12 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
         minX = min(map(:,1));
         minY = min(map(:,2));  
 
-        start = [meanPosX, meanPosY]; % for now we leave the starting pos at this,
+%       start = [meanPosX, meanPosY]; % for now we leave the starting pos at this,
                                       % later set it to mean of closest
                                       % particles
-
-        for i=1:nrGraph
+        randCord(:,1)=[meanPosX, meanPosY];
+        randCord(:,2)=target;
+        for i=3:nrGraph
             randCord(:,i)= [randi([minX,maxX]) randi([minY, maxY])] ;
             pathBot.setBotPos(randCord(:,i)); 
             if pathBot.insideMap() == 0 % checking if point is inside the map 
@@ -170,7 +171,7 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
         % Create graph with edges
         l = 0;
 %         edges = zeros(5,nrGraph);
-        mapShape = size(map)
+        mapShape = size(map);
         for j = 1:nrGraph
             for k = j: nrGraph
                 if (randCord(:,j) ~= [-1 -1]) 
@@ -198,7 +199,23 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
                 end
             end
         end
+        
+        contoStart = isconnected(edges,[meanPosX, meanPosY])
+        if ismember(contoStart, target)==1
+            disp("conected to start!!! go for it! -------------------")
+        end
+        break
 
+        
+        turn = 0.5;
+        move = 2;
+        botSim.turn(turn); %turn the real robot.  
+        botSim.move(move); %move the real robot. These movements are recorded for marking 
+        for i =1:num %for all the particles. 
+            particles(i).turn(turn); %turn the particle in the same way as the real robot
+            particles(i).move(move); %move the particle in the same way as the real robot
+        end
+    
     end 
     turn = 0.5;
     move = 2;
@@ -216,22 +233,28 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
     if botSim.debug()
         hold off; %the drawMap() function will clear the drawing when hold is off
         botSim.drawMap();%drawMap() turns hold back on again -> you can draw the bots
-        botSim.drawBot(30,'g'); %draw robot with line length 30 and green
+%         botSim.drawBot(30,'g'); %draw robot with line length 30 and green
 %         for i =1:num
 %             particles(i).drawBot(3); %draw particle with line length 3
 %         end
         if converged == 1
-            
-            for i = 1:nrGraph
+            for i = 1:l
+                plot([edges(1,i) edges(3,i)], [edges(2,i) edges(4,i)],'-co')
+            end
+            plot(randCord(1,1), randCord(2,1), 'r+')
+            plot(randCord(1,2), randCord(2,2), 'm+')
+            for i = 3:nrGraph
                 if randCord(:,i) ~= [-1 -1]
                     plot(randCord(1,i), randCord(2,i), 'b*')
                 end
             end
             
-            for i = 1:l
-                plot([edges(1,i) edges(3,i)], [edges(2,i) edges(4,i)],'-o')
-            end
+%             for i = 1:l
+%                 plot([edges(1,i) edges(3,i)], [edges(2,i) edges(4,i)],'-go')
+%             end
         end
+
+        botSim.drawBot(30,'g'); %draw robot with line length 30 and green
 %         meanPosX = mean(partPos(1,:));
 %         meanPosY = mean(partPos(2,:));
 %         meanAng = mean(partPos(3,:));
@@ -259,6 +282,21 @@ function line = intersect(borderX, borderY)
     end
 end
 
+function connected = isconnected(edges,node)
+    j = 0;
+    connected = WTF?????
+    for i=1:size(edges,2)
+        m = ismember(edges(1:2,:),node);
+        n = ismember(edges(3:4,:),node);
+        if m
+            j = j+1;
+            connected(j)= edges(3:4,i);
+        elseif n
+            j = j+1;
+            connected(j) = edges(1:2,i);
+        end
+    end
+end
 % do average only in the area where the density is the highest not the
 % whole map 
 % 
