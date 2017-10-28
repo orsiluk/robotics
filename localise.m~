@@ -44,7 +44,9 @@ function [botSim] = localise(botSim,map,target)
     damping = 0.000000001; %damping factor
     minrad = 0.523599;
     mindist = 2;
+    foundIt = 0;
     
+    while fondIt == 0
     botSim.setScanConfig(botSim.generateScanConfig(6));
     botSim.drawScanConfig();  %draws the scan configuration to verify it is correct
     botSim.drawBot(5);
