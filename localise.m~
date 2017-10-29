@@ -15,7 +15,7 @@ botSim.setMap(modifiedMap);
 %generate some random particles inside the map
 num =300; % number of particles
 partPos = zeros(3, num);
-dist = zeros(3, num);
+dist = zeros(2, num);
 
 particles(num,1) = BotSim; %how to set up a vector of objects
 resPart = zeros(num, 3); % position(1,2), angle(3)
@@ -26,7 +26,7 @@ pathBot.setScanConfig(generateScanConfig(pathBot,6));
 estBot = BotSim(modifiedMap); % estimated bot position
 pathBot.setScanConfig(generateScanConfig(estBot,6));
 
-nrGraph = 50;
+nrGraph = 100;
 randCord = zeros(2, nrGraph); %random coordonates on the map to find shortest path
 for i = 1:num
     particles(i) = BotSim(modifiedMap);  % each particle should use the same
@@ -108,21 +108,21 @@ while notThere
         end
         meanPosX = mean(partPos(1,:));
         meanPosY = mean(partPos(2,:));
-        meanAng = mean(partPos(3,:));
+        %         meanAng = mean(partPos(3,:));
         
         for i = 1:num
-            dist(:,i) = [abs(partPos(1,i)-meanPosX) abs(partPos(2,i)-meanPosY) abs(partPos(3,i)-meanAng)];
+            dist(:,i) = [abs(partPos(1,i)-meanPosX) abs(partPos(2,i)-meanPosY)];
         end
         
         distX = sum(dist(1,:)<mindist); %nr of paricles that are withing distX (2)
         distY = sum(dist(2,:)<mindist); %nr of paricles that are withing distY (2)
-        distAng = sum(dist(3,:)<minrad);%nr of paricles that are withing distAng (1) (30 degrees)
+        %         distAng = sum(dist(3,:)<minrad);%nr of paricles that are withing distAng (1) (30 degrees)
         
-%         meanPosX = mean(nonzeros(partPos(1,:).*(dist(1,:)<mindist)));
-%         meanPosY = mean(nonzeros(partPos(2,:).*(dist(2,:)<mindist)));
-%         meanAng = mean(nonzeros(partPos(3,:).*(dist(3,:)<minrad)));
+        %         meanPosX = mean(nonzeros(partPos(1,:).*(dist(1,:)<mindist)));
+        %         meanPosY = mean(nonzeros(partPos(2,:).*(dist(2,:)<mindist)));
+        %         meanAng = mean(nonzeros(partPos(3,:).*(dist(3,:)<minrad)));
         
-        if (distX>(num*0.85) && distY>(num*0.85) && distAng>(num*0.85))
+        if (distX>(num*0.85) && distY>(num*0.85))
             %     if (distX>(num*0.8) && distY>(num*0.8))
             converged = 1
             
@@ -134,7 +134,7 @@ while notThere
                 minX = min(map(:,1));
                 minY = min(map(:,2));
                 
-                start = [meanPosX, meanPosY]; 
+                start = [meanPosX, meanPosY];
                 randCord(:,1)=[meanPosX,meanPosY]; %First element will be the place we think we are at
                 randCord(:,2)=target; %Second element will be the target the rest random points
                 
@@ -190,8 +190,9 @@ while notThere
         % 	get the mean of the locations and the turning point and assign it to
         % 	the main bot and suppose it is there if k percent of bots is there, it
         % 	converged
-        estBot.setBotPos([meanPosX,meanPosY])
-        estBot.setBotAng(meanAng)
+        estBot.setBotPos([meanPosX,meanPosY]);
+        meanAng = setMeanAng(botSim,estBot);
+        estBot.setBotAng(meanAng);
         
         %% Write code to take a percentage of your particles and respawn in randomised locations (important for robustness)
         perc = 0.05*num;
@@ -218,141 +219,247 @@ while notThere
         
     end
     
-        %% Write path finding algorithm to decide how to move
-        
-        connected = isconnected(edges,start,target);
-        
-        if connected == 1
-%             slope = (target(2) - start(2)) / (target(1) - start(1));
-%             angle = atan(slope);
-            start = estBot.getBotPos();
-            estBot.setBotAng(botSim.getBotAng());
-            dir_bot = estBot.getBotAng();
-%             dir_line = (atan2d(target(2) - start(2), target(1) - start(1))) * pi /180;
-            dir_line = (atan2d(start(2) - target(2), start(1) - target(1))) * pi /180;
-            turn =pi - dir_bot + dir_line;          
-%             turn = estBot.getBotAng()-angle;
-            path = [start;target];
-%             move = 5;
-            move = pdist([target; start],'euclidean');
-        else
-            % Find shortest path
-            message = "NO PATH"
-            %       My issue is, if we do A* I shouldn't resample the particles, which might be a good idea
-            %       since it takes time to build the database and everything. I would
-            %       have the node tho, because that will be the new mean(we have to
-            %       update it when we move). But if I redo the random points I will
-            %       need simple greedy, not A*. I could just say, which point takes me
-            %       closest to target, but that's kinda stupid.. So no re-doing the
-            %       graph. Cool. I shall do this tomorrow.
-            %             findNextBest;
-        end
-        
-        
-        if (estBot.getBotPos() < target+2 & estBot.getBotPos() > target-2)
-            notThere = 1;
-            break
-        end
-        
-        %% Drawing
-        %only draw if you are in debug mode or it will be slow during marking
-%         pred = BotSim(modifiedMap);
-%         pred.setScanConfig(generateScanConfig(pred,6));
-        
-        if botSim.debug()
-            hold off; %the drawMap() function will clear the drawing when hold is off
-            botSim.drawMap();%drawMap() turns hold back on again -> you can draw the bots
-            %         botSim.drawBot(30,'g'); %draw robot with line length 30 and green
-            %         for i =1:num
-            %             particles(i).drawBot(3); %draw particle with line length 3
-            %         end
-            if converged == 1
-                %                 for i = 1:l
-                %                     plot(edges(:,1,i) , edges(:,2,i),'-co')
-                %                 end
-                %             for i=1:size(path,1)-1
-                %                 plot(path(:,i),path(:,i+1),'-ro')
-                %             end
-                
-                for i = 1:size(path,2)-1
-                    plot(path(:,i),path(:,i+1),'-ro')
-                end
-                plot(start(1,1),start(1,2), 'r+')
-                plot(target(1,1),target(1,2), 'g+')
-                for i = 3:nrGraph
-                    if randCord(:,i) ~= [-1 -1]
-                        plot(randCord(1,i), randCord(2,i), 'b*')
-                    end
-                end
-            end
-            
-            botSim.drawBot(30,'g'); %draw robot with line length 30 and green
-            estBot.drawBot(5,'y');
-%             pred.setBotPos([meanPosX, meanPosY]);
-%             pred.setBotAng(meanAng);
-%             pred.drawBot(15);
-            drawnow;
-        end
-        
-        botSim.turn(turn); %turn the real robot.
-        botSim.drawBot(5,'c');
-        drawnow;
-        botSim.move(move); %move the real robot. These movements are recorded for marking
-        estBot.turn(turn);
-        estBot.move(move);
-        estBot.drawBot(5,'b');
-        botSim.drawBot(5,'m');
-        drawnow;
-        for i =1:num %for all the particles.
-            particles(i).turn(turn); %turn the particle in the same way as the real robot
-            particles(i).move(move); %move the particle in the same way as the real robot
-            
-        end
-    break
+    %% Write path finding algorithm to decide how to move
+    
+    connected = isconnected(edges,start,target);
+    
+    if connected == 1
+        %             slope = (target(2) - start(2)) / (target(1) - start(1));
+        %             angle = atan(slope);
+        start = estBot.getBotPos();
+        %             estBot.setBotAng(botSim.getBotAng());
+        dir_bot = estBot.getBotAng();
+        %             dir_line = (atan2d(target(2) - start(2), target(1) - start(1))) * pi /180;
+        dir_line = (atan2d(start(2) - target(2), start(1) - target(1))) * pi /180;
+        turn =pi - dir_bot + dir_line;
+        %             turn = estBot.getBotAng()-angle;
+        path = [start;target];
+        %             move = 5;
+        move = pdist([target; start],'euclidean');
+    else
+        % Find shortest path
+        [path,len] = dijkstra(start,target,randCord)
+        path
+        %       My issue is, if we do A* I shouldn't resample the particles, which might be a good idea
+        %       since it takes time to build the database and everything. I would
+        %       have the node tho, because that will be the new mean(we have to
+        %       update it when we move). But if I redo the random points I will
+        %       need simple greedy, not A*. I could just say, which point takes me
+        %       closest to target, but that's kinda stupid.. So no re-doing the
+        %       graph. Cool. I shall do this tomorrow.
+        %             findNextBest;
     end
     
+    
+    if estBot.getBotPos() == target
+        notThere = 1;
+        break
+    end
+    
+    %% Drawing
+    %only draw if you are in debug mode or it will be slow during marking
+    %         pred = BotSim(modifiedMap);
+    %         pred.setScanConfig(generateScanConfig(pred,6));
+    
+    if botSim.debug()
+        hold off; %the drawMap() function will clear the drawing when hold is off
+        botSim.drawMap();%drawMap() turns hold back on again -> you can draw the bots
+        %         botSim.drawBot(30,'g'); %draw robot with line length 30 and green
+        %         for i =1:num
+        %             particles(i).drawBot(3); %draw particle with line length 3
+        %         end
+        if converged == 1
+            %                 for i = 1:l
+            %                     plot(edges(:,1,i) , edges(:,2,i),'-co')
+            %                 end
+            %             for i=1:size(path,1)-1
+            %                 plot(path(:,i),path(:,i+1),'-ro')
+            %             end
+            
+            for i = 1:size(path,2)-1
+                plot(path(:,i),path(:,i+1),'-ro')
+            end
+            plot(start(1,1),start(1,2), 'r+')
+            plot(target(1,1),target(1,2), 'g+')
+            for i = 3:nrGraph
+                if randCord(:,i) ~= [-1 -1]
+                    plot(randCord(1,i), randCord(2,i), 'b*')
+                end
+            end
+        end
+        
+        botSim.drawBot(30,'g'); %draw robot with line length 30 and green
+        estBot.drawBot(5,'c');
+        %             pred.setBotPos([meanPosX, meanPosY]);
+        %             pred.setBotAng(meanAng);
+        %             pred.drawBot(15);
+        drawnow;
+    end
+    
+    botSim.turn(turn); %turn the real robot.
+    %         botSim.drawBot(5,'c');
+    drawnow;
+    botSim.move(move); %move the real robot. These movements are recorded for marking
+    estBot.turn(turn);
+    estBot.move(move);
+    estBot.drawBot(5,'b');
+    botSim.drawBot(5,'m');
+    drawnow;
+    for i =1:num %for all the particles.
+        particles(i).turn(turn); %turn the particle in the same way as the real robot
+        particles(i).move(move); %move the particle in the same way as the real robot
+        
+    end
+    break
+end
+
 end
 
 %%
 
-    function line = intersect(borderX, borderY)
-        %     borderX=[x1 x2 x3 x4];
-        %     borderY=[y1 y2 y3 y4];
-        deter1=det([1,1,1;borderX(1),borderX(2),borderX(3);borderY(1),borderY(2),borderY(3)])*det([1,1,1;borderX(1),borderX(2),borderX(4);borderY(1),borderY(2),borderY(4)]);
-        deter2=det([1,1,1;borderX(1),borderX(3),borderX(4);borderY(1),borderY(3),borderY(4)])*det([1,1,1;borderX(2),borderX(3),borderX(4);borderY(2),borderY(3),borderY(4)]);
-        
-        if(deter1<=0 & deter2<=0)
-            line=1;         %If lines intesect
-        else
-            line=0;
-        end
+function ang = setMeanAng(botSim,estBot)
+ang = 0;
+botScan = botSim.ultraScan();
+minim = [10000 10000 10000 10000 10000 10000];
+%     estScan = zeros(
+for i=1:360
+    estBot.turn(deg2rad(1));
+    diff=abs(estBot.ultraScan()-botScan);
+    if diff<minim
+        minim = diff;
+        ang = deg2rad(i);
     end
+end
+end
 
-    function connected = isconnected(edges, node1, node2)
-        i=1;
-        connected = 0;
-        while ( connected == 0 && i<size(edges,3))
-            if ismember(edges(:,:,i),[node1;node2])
-                connected = 1;
-                break
-            elseif ismember(edges(:,:,i),[node2;node1])
-                connected = 1;
-                break
-            end
-            i=i+1;
-        end
-        % i = 1;
-        % while ( connected == 0 && i<size(edges,3))
-        %
-        %
-        %     if ((edges(1,:,i) == node1) & (edges(2,:,i) == node2))
-        %         connected = 1;
-        %     elseif ((edges(1,:,i) == node2) & (edges(2,:,i) == node1))
-        %         connected = 1;
-        %     end
-        %     i = i+1;
-        % end
+function line = intersect(borderX, borderY)
+%     borderX=[x1 x2 x3 x4];
+%     borderY=[y1 y2 y3 y4];
+deter1=det([1,1,1;borderX(1),borderX(2),borderX(3);borderY(1),borderY(2),borderY(3)])*det([1,1,1;borderX(1),borderX(2),borderX(4);borderY(1),borderY(2),borderY(4)]);
+deter2=det([1,1,1;borderX(1),borderX(3),borderX(4);borderY(1),borderY(3),borderY(4)])*det([1,1,1;borderX(2),borderX(3),borderX(4);borderY(2),borderY(3),borderY(4)]);
+
+if(deter1<=0 & deter2<=0)
+    line=1;         %If lines intesect
+else
+    line=0;
+end
+end
+
+
+function connected = isconnected(edges, node1, node2)
+i=1;
+connected = 0;
+while ( connected == 0 && i<size(edges,3))
+    if ismember(edges(:,:,i),[node1;node2])
+        connected = 1;
+        break
+    elseif ismember(edges(:,:,i),[node2;node1])
+        connected = 1;
+        break
     end
+    i=i+1;
+end
+% i = 1;
+% while ( connected == 0 && i<size(edges,3))
+%
+%
+%     if ((edges(1,:,i) == node1) & (edges(2,:,i) == node2))
+%         connected = 1;
+%     elseif ((edges(1,:,i) == node2) & (edges(2,:,i) == node1))
+%         connected = 1;
+%     end
+%     i = i+1;
+% end
+end
+
+function [shortestpath,cost] = dijkstra(start,target,randNodes)
+i =1;
+for j=1: size(randNodes)
+    if randNodes(:,j) ~= [-1,-1]
+        nodes(:,i) =randNodes(:,j);
+        i = i+1;
+    end
+    
+end
+n=size(nodes,2);
+costmatrix = zeros(n,n);
+for i = 1:n
+    for j = i:n
+        edist = pdist([nodes(:,i); nodes(:,j)],'euclidean');
+        costmatrix(i,j) = edist;
+        costmatrix(j,i) = edist;
+    end
+end
+
+
+S(1:n) = 0;
+dist(i,:) = inf;
+dist(1)=0;
+prev(1:n) = n+1;
+
+while sum(S)~=n %not all nodes were visited
+    candidate=[];
+    for i=1:n
+        if S(i)==0
+            candidate=[candidate dist(i)];
+        else
+            candidate=[candidate inf];
+        end
+    end
+    [index u]=min(candidate);
+    S(u)=1;
+    for i=1:n
+        if(dist(u)+costmatrix(u,i))<dist(i)
+            dist(i)=dist(u)+costmatrix(u,i);
+            prev(i)=u;
+        end
+    end
+end
+
+shortestpath = [target];
+
+while shortestpath(1) ~= start
+    if prev(shortestpath(1))<=n
+        shortestpath=[prev(shortestpath(1)) shortestpath];
+    else
+        errorMessage = "You made such a mess!"
+    end
+end
+cost = dist(target);
+
+% -------------------------------------------------
+
+%     for i =1:size(nodes)
+%         c = 0;
+%         conectionsL = ismember(nodes(:,i),edges(1,:,:));
+%         conectionsR = ismember(nodes(:,i),edges(2,:,:));
+%         connections = conectionsL+conectionsR;
+%         for j = 1:size(connections)
+%             if connections(j) == 1
+%                 c =c+1;
+%                 distToNode(j) = pdist([nodes(:,i); edges(2,:,j)],'euclidean');
+%             elseif connectionsR(j) == 1
+%                 c =c+1;
+%                 distToNode(j) = pdist([nodes(:,i); edges(1,:,j)],'euclidean');
+%             end
+%         end
+%
+%     end
+% checked = 1;
+% length = 0;
+% q = zeros(:,:,size(nodes))
+% 
+% prev = (size(nodes))
+% 
+% 
+% 
+% found = 0;
+% 
+% while (checked<size(nodes) && found == 0)
+%     
+% end
+
+end
 
 % function connected = isconnected(edges,node)
 %     j = 0;
@@ -369,7 +476,3 @@ end
 %         end
 %     end
 % end
-
-% do average only in the area where the density is the highest not the
-% whole map
-%
