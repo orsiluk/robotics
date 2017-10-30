@@ -26,7 +26,7 @@ pathBot.setScanConfig(generateScanConfig(pathBot,6));
 estBot = BotSim(modifiedMap); % estimated bot position
 pathBot.setScanConfig(generateScanConfig(estBot,6));
 
-nrGraph = 100;
+nrGraph = 200;
 randCord = zeros(2, nrGraph); %random coordonates on the map to find shortest path
 for i = 1:num
     particles(i) = BotSim(modifiedMap);  % each particle should use the same
@@ -235,11 +235,26 @@ while notThere
         %             turn = estBot.getBotAng()-angle;
         path = [start;target];
         %             move = 5;
-        move = pdist([target; start],'euclidean');
+        %         move = pdist([target; start],'euclidean');
+        move = distance(target, start);
     else
         % Find shortest path
         [path,len] = dijkstra(start,target,randCord)
         path
+        
+        for i = 1: size(path)
+            start = estBot.getBotPos();
+            %             estBot.setBotAng(botSim.getBotAng());
+            dir_bot = estBot.getBotAng();
+            %             dir_line = (atan2d(target(2) - start(2), target(1) - start(1))) * pi /180;
+            dir_line = (atan2d(start(2) - target(2), start(1) - target(1))) * pi /180;
+            turn =pi - dir_bot + dir_line;
+            %             turn = estBot.getBotAng()-angle;
+            path = [start;target];
+            %             move = 5;
+            %         move = pdist([target; start],'euclidean');
+            move = distance(target, start);
+        end
         %       My issue is, if we do A* I shouldn't resample the particles, which might be a good idea
         %       since it takes time to build the database and everything. I would
         %       have the node tho, because that will be the new mean(we have to
@@ -374,28 +389,26 @@ end
 
 function [shortestpath,cost] = dijkstra(start,target,randNodes)
 i =1;
+s =1;
+t =2;
 for j=1: size(randNodes)
     if randNodes(:,j) ~= [-1,-1]
         nodes(:,i) =randNodes(:,j);
+        if randNodes(:,j) == start
+            s = i;
+        end
+        if randNodes(:,j) == target
+            t = i;
+        end
         i = i+1;
     end
     
 end
 n=size(nodes,2);
-costmatrix = zeros(n,n);
-for i = 1:n
-    for j = i:n
-        edist = pdist([nodes(:,i); nodes(:,j)],'euclidean')
-%         Soemthing is wrong with the eucledian distance
-        costmatrix(i,j) = edist;
-        costmatrix(j,i) = edist;
-    end
-end
-
 
 S(1:n) = 0;
 dist(i,:) = inf;
-dist(1)=0;
+dist(s)=0;
 prev(1:n) = n+1;
 
 while sum(S)~=n %not all nodes were visited
@@ -407,26 +420,26 @@ while sum(S)~=n %not all nodes were visited
             candidate=[candidate inf];
         end
     end
-    [index u]=min(candidate);
-    S(u)=1;
+    [place, val]=min(candidate);
+    S(val)=1;
     for i=1:n
-        if(dist(u)+costmatrix(u,i))<dist(i)
-            dist(i)=dist(u)+costmatrix(u,i);
-            prev(i)=u;
+        if(dist(val)+distance(nodes(:,i),nodes(:,j)))<dist(i)
+            dist(i)=dist(val)+distance(nodes(:,i),nodes(:,j));
+            prev(i)=val;
         end
     end
 end
 
-shortestpath = [target];
+shortestpath = t;
 
-while shortestpath(1) ~= start
+while shortestpath(1) ~= s
     if prev(shortestpath(1))<=n
         shortestpath=[prev(shortestpath(1)) shortestpath];
     else
-        errorMessage = "You made such a mess!"
+        errorMessage = "There is no path :(((((!"
     end
 end
-cost = dist(target);
+cost = dist(t);
 
 % -------------------------------------------------
 
@@ -449,15 +462,15 @@ cost = dist(target);
 % checked = 1;
 % length = 0;
 % q = zeros(:,:,size(nodes))
-% 
+%
 % prev = (size(nodes))
-% 
-% 
-% 
+%
+%
+%
 % found = 0;
-% 
+%
 % while (checked<size(nodes) && found == 0)
-%     
+%
 % end
 
 end
