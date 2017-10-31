@@ -13,9 +13,9 @@ botSim.setMap(modifiedMap);
 
 
 %generate some random particles inside the map
-num =300; % number of particles
-partPos = zeros(3, num);
-nrGraph = 100;
+num =400; % number of particles
+% partPos = zeros(3, num);
+nrGraph = 150;
 particles(num,1) = BotSim; %how to set up a vector of objects
 
 estBot = BotSim(modifiedMap); % estimated bot position
@@ -27,7 +27,7 @@ for i = 1:num
     particles(i).randomPose(0); %spawn the particles in random locations
     particles(i).setScanConfig(generateScanConfig(particles(i),6));
     partPos(:,i) = [particles(i).getBotPos() particles(i).getBotAng()];
-%     particles(i).drawBot(3);
+    %     particles(i).drawBot(3);
 end
 
 %% Iterate until you find the target
@@ -43,11 +43,16 @@ path = [];
 while notThere == 1
     %% Localisation code
     
-    [path, estBot,botSim,randCord,steps] = findLocation(map,steps,botSim,estBot,particles,partWeight,num,target,modifiedMap,nrGraph,path);
+    [path, estBot,botSim,randCord,steps,particles,convergeError] = findLocation(map,steps,botSim,estBot,particles,partWeight,num,target,modifiedMap,nrGraph,path);
     
-    
+    while convergeError == 1
+       [path, estBot,botSim,randCord,steps,particles,convergeError] = findLocation(map,steps,botSim,estBot,particles,partWeight,num,target,modifiedMap,nrGraph,path); 
+    end
     %% Write path finding algorithm to decide how to move
-    for i = 1:size(path)
+    if steps == 1
+        next = path(1,:);
+    end
+    for i = 1:size(path)-1
         distToNode = distance(estBot.getBotPos(),path(i,:));
         if distToNode < 2
             next = path(i+1,:);
@@ -58,8 +63,8 @@ while notThere == 1
     dir_line = (atan2d(start(2) - next(2), start(1) - next(1))) * pi /180;
     turn =pi - dir_bot + dir_line;
     %         move = pdist([target; start],'euclidean');
-%     move = distance(next, start);
-    move = min(5,distance(next, start));
+    %     move = distance(next, start);
+    move = min(3,distance(next, start));
     
     %% Drawing
     %only draw if you are in debug mode or it will be slow during marking
@@ -67,7 +72,7 @@ while notThere == 1
     %         pred.setScanConfig(generateScanConfig(pred,6));
     
     if botSim.debug()
-%         hold off; %the drawMap() function will clear the drawing when hold is off
+        %         hold off; %the drawMap() function will clear the drawing when hold is off
         botSim.drawMap();%drawMap() turns hold back on again -> you can draw the bots
         
         for i = 1:size(path,2)-1
@@ -75,15 +80,15 @@ while notThere == 1
         end
         plot(start(1,1),start(1,2), 'r+')
         plot(target(1,1),target(1,2), 'g+')
-%         for i = 3:nrGraph
-%             if randCord(:,i) ~= [-1 -1]
-%                 plot(randCord(1,i), randCord(2,i), 'b*')
-%             end
-%         end
+        %         for i = 3:nrGraph
+        %             if randCord(:,i) ~= [-1 -1]
+        %                 plot(randCord(1,i), randCord(2,i), 'b*')
+        %             end
+        %         end
         
-%         botSim.drawBot(30,'g'); %draw robot with line length 30 and green
-%         estBot.drawBot(5,'c');
-%         drawnow;
+        %         botSim.drawBot(30,'g'); %draw robot with line length 30 and green
+        %         estBot.drawBot(5,'c');
+        %         drawnow;
     end
     
     botSim.turn(turn); %turn the real robot.
@@ -119,12 +124,12 @@ botScan = botSim.ultraScan();
 minim = [10000 10000 10000 10000 10000 10000];
 %     estScan = zeros(
 for i=1:360
-%     estBot.turn(deg2rad(1));
+    %     estBot.turn(deg2rad(1));
     estBot.setBotAng(i*pi/180);
     diff=abs(estBot.ultraScan()-botScan);
     if diff<minim
         minim = diff;
-%         ang = deg2rad(i);
+        %         ang = deg2rad(i);
         ang = i*pi/180;
     end
 end
@@ -157,20 +162,10 @@ while ( connected == 0 && i<size(edges,3))
     end
     i=i+1;
 end
-% i = 1;
-% while ( connected == 0 && i<size(edges,3))
-%
-%
-%     if ((edges(1,:,i) == node1) & (edges(2,:,i) == node2))
-%         connected = 1;
-%     elseif ((edges(1,:,i) == node2) & (edges(2,:,i) == node1))
-%         connected = 1;
-%     end
-%     i = i+1;
-% end
 end
 
-function [realPath,cost] = dijkstra(start,target,randNodes)
+function [realPath,cost] = dijkstra(start,target,randNodes,map)
+%     disp('in this mother fucking functions')
 i =1;
 s =1;
 t =2;
@@ -179,25 +174,28 @@ for j=1: size(randNodes,2)
     if randNodes(:,j) ~= [-1,-1]
         nodes(:,i) =randNodes(:,j);
         
-        if randNodes(:,j) == start
-            s = i;
-        end
-        if randNodes(:,j) == target
-            t = i;
-        end
+        %             if randNodes(:,j) == start
+        %                 s = i;
+        %             end
+        %             if randNodes(:,j) == target
+        %                 t = i;
+        %             end
         
         i = i+1;
     end
     
 end
 n=size(nodes,2);
+mapShape = size(map);
 
 S(1:n) = 0;
-dist(i,:) = inf;
-dist(s)=0;
+dist = Inf(n, 1);
+dist(s) = 0;
 prev(1:n) = n+1;
-
+%     disp('just before sthe while loop ');
+%     disp(sum(S));
 while sum(S)~=n %not all nodes were visited
+    %         disp('went into this crap ');
     candidate=[];
     for i=1:n
         if S(i)==0
@@ -207,34 +205,65 @@ while sum(S)~=n %not all nodes were visited
         end
     end
     [place, val]=min(candidate);
+    %         disp(candidate);
     S(val)=1;
-    for i=1:n
-        % there's no such thing as node J
-        if(dist(val)+distance(nodes(:,i),nodes(:,j)))<dist(i)
-            dist(i)=dist(val)+distance(nodes(:,i),nodes(:,j));
-            prev(i)=val;
-        end
-        
+    if val == 2
+        break;
     end
+    for i = 1:n
+        if val == 2
+            %                     disp('bluuuh');
+        end
+        %%check if node connected if not then set distance to inf
+        
+        crashAndBurn = 0;
+        for m = 1:mapShape(1)
+            if m == mapShape(1)
+                borderX=[nodes(1,val) nodes(1,i) map(m,1) map(1,1)];
+                borderY=[nodes(2,val) nodes(2,i) map(m,2) map(2,1)];
+            else
+                borderX=[nodes(1,val) nodes(1,i) map(m,1) map(m+1,1)];
+                borderY=[nodes(2,val) nodes(2,i) map(m,2) map(m+1,2)];
+            end
+            inter  = intersect(borderX, borderY);
+            if inter == 1
+                crashAndBurn = 1;
+                break
+            end
+        end
+        if crashAndBurn
+            node_dist = Inf;
+        else
+            node_dist = pdist([nodes(1,val), nodes(1,i); nodes(2,val), nodes(2,i)], 'euclidean');
+            if(dist(val)+node_dist<dist(i))
+                if dist(val) == inf
+                    dist(val) = 0;
+                end
+                dist(i)= dist(val) + node_dist;
+                prev(i)=val;
+            end
+        end
+    end
+    
 end
 
 shortestpath = t;
 
 while shortestpath(1) ~= s
-%     if prev(shortestpath(1))<=n
-        trg = target
-        s = shortestpath(1)
-        sp = nodes(:,shortestpath(1))
-        pr  = prev(:)
-        shortestpath=[prev(shortestpath(1)), shortestpath]
-        
-%     else
-%         errorMessage = "--------There is no path ------!"
-%     end
+    %     if prev(shortestpath(1))<=n
+    
+    shortestpath=[prev(shortestpath(1)), shortestpath];
+    
+    %     else
+    %         errorMessage = "--------There is no path ------!"
+    %     end
 end
 
-for i = 1:size(shortestpath)
-    realPath(i,:)=nodes(:,shortestpath(i))
+realPath = zeros(length(shortestpath), 2, 1);
+%     disp('gets here')
+for i = 1 : length(shortestpath)
+    %         disp('in fuckking loop');
+    realPath(i, :) = nodes(:,shortestpath(i));
 end
 
 cost = dist(t);
@@ -259,12 +288,12 @@ end
 
 
 
-function [path, estBot,botSim,randCord,steps]= findLocation(map,steps,botSim,estBot,particles,partWeight,num,target,modifiedMap,nrGraph,path)
-maxNumOfIterations = 60;
+function [path, estBot,botSim,randCord,steps,particles,convergeError]= findLocation(map,steps,botSim,estBot,particles,partWeight,num,target,modifiedMap,nrGraph,path)
+convergeError = 0;
+maxNumOfIterations = 50;
 var = 5; % variance for Gussian
 sqrt2PiVar = sqrt(2*pi*var);
 damping = 0.000000001; %damping factor
-% minrad = 0.523599;
 mindist = 1;
 converged =0; %The filter has not converged yet
 n = 0;
@@ -273,6 +302,47 @@ resPart = zeros(num, 3); % position(1,2), angle(3)
 pathBot = BotSim(modifiedMap);
 pathBot.setScanConfig(generateScanConfig(pathBot,6));
 dist = zeros(2, num);
+partPos = zeros(3, num);
+
+scan = botSim.ultraScan();
+for i=1:length(scan)
+    if (botSim.insideMap() ~= 1 || convergeError ==1)
+        steps = 0;
+        for i = 1:num
+            %         particles(i) = BotSim(modifiedMap);  % each particle should use the same
+            % map as the botSim object
+            particles(i).randomPose(0); %spawn the particles in random locations
+            %         particles(i).setScanConfig(generateScanConfig(particles(i),6));
+            partPos(:,i) = [particles(i).getBotPos() particles(i).getBotAng()];
+            %     particles(i).drawBot(3);
+        end
+        
+        break
+    end
+    
+    if scan(i) < 3
+        steps = 0;
+        for i = 1:num
+%             particles(i) = BotSim(modifiedMap);  % each particle should use the same
+            % map as the botSim object
+            particles(i).randomPose(0); %spawn the particles in random locations
+            particles(i).setScanConfig(generateScanConfig(particles(i),6));
+            partPos(:,i) = [particles(i).getBotPos() particles(i).getBotAng()];
+            %     particles(i).drawBot(3);
+        end
+    end
+end
+
+% if steps == 0
+%     for i = 1:num
+% %         particles(i) = BotSim(modifiedMap);  % each particle should use the same
+%         % map as the botSim object
+%         particles(i).randomPose(0); %spawn the particles in random locations
+% %         particles(i).setScanConfig(generateScanConfig(particles(i),6));
+%         partPos(:,i) = [particles(i).getBotPos() particles(i).getBotAng()];
+%         %     particles(i).drawBot(3);
+%     end
+% end
 
 while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
     n = n+1; %increment the current number of iterations
@@ -305,16 +375,11 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
         resPart(i, 3) = particles(partic).getBotAng();
     end
     
-%     if steps == 0
-        for i = 1:num
-            particles(i).setBotPos([resPart(i,1), resPart(i,2)]);
-            particles(i).setBotAng(resPart(i,3));
-%             turn = randi(2);
-%             move = randi(1);
-%             particles(i).turn(turn);
-%             particles(i).move(move);
-        end
-%     end
+    for i = 1:num
+        particles(i).setBotPos([resPart(i,1), resPart(i,2)]);
+        particles(i).setBotAng(resPart(i,3));
+    end
+    
     
     
     %% Write code to check for convergence
@@ -365,7 +430,7 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
             % Create graph with edges
             l = 0;
             mapShape = size(map);
-
+            
             for j = 1:nrGraph
                 for k = j+1: nrGraph
                     if (randCord(:,j) ~= [-1 -1]) & (randCord(:,k) ~= [-1 -1])
@@ -400,7 +465,7 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
             if connected
                 path = [start;target];
             else
-                [path,len] = dijkstra(start,target,randCord);
+                [path,len] = dijkstra(start,target,randCord,map);
             end
             
             botSim.drawBot(30,'g');
@@ -410,7 +475,7 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
                 drawnow;
             end
             plot(target(1,1),target(1,2), 'r*')
-
+            
             drawnow;
         end
         
@@ -441,5 +506,9 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
         end
     end
     
+end
+if converged == 0
+    disp("Did not converge, ERROR!");
+    convergeError = 1;
 end
 end
