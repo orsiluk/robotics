@@ -37,7 +37,7 @@ notThere = 1;
 steps = 0;
 path = [];
 
-while notThere == 1
+while notThere == 1 % While I haven't reached the target
     %% Localisation code
     
     [path, estBot,botSim,randCord,steps,particles,convergeError] = findLocation(map,steps,botSim,estBot,particles,partWeight,num,target,modifiedMap,nrGraph,path);
@@ -57,11 +57,11 @@ while notThere == 1
     end
     start = estBot.getBotPos();
     dir_bot = estBot.getBotAng();
+    % Calculate the direction of the line between your current position and
+    % the target you want to reach which is the next node in the path
     dir_line = (atan2d(start(2) - next(2), start(1) - next(1))) * pi /180;
     turn =pi - dir_bot + dir_line;
-    %         move = pdist([target; start],'euclidean');
-    %     move = distance(next, start);
-    move = min(3,distance(next, start));
+    move = min(5,distance(next, start));
     
     %% Drawing
     
@@ -80,8 +80,10 @@ while notThere == 1
     botSim.move(move); %move the real robot. These movements are recorded for marking
     estBot.turn(turn);
     estBot.move(move);
-    estBot.drawBot(5,'b');
-    botSim.drawBot(5,'g');
+    if botSim.debug()
+        estBot.drawBot(5,'b');
+        botSim.drawBot(5,'g');
+    end
     drawnow;
     for i =1:num %for all the particles.
         turnNoise = normrnd(turn,0.6);
@@ -103,6 +105,8 @@ end
 %%
 
 function ang = setMeanAng(botSim,estBot)
+% Set the mean rorbot's angle by turning around and doing ultrascans and
+% comapre them
 ang = 0;
 botScan = botSim.ultraScan();
 minim = [10000 10000 10000 10000 10000 10000];
@@ -117,6 +121,7 @@ end
 end
 
 function line = intersect(borderX, borderY)
+% Find out if the edge itersacts with any of the borders
 %     borderX=[x1 x2 x3 x4];
 %     borderY=[y1 y2 y3 y4];
 deter1=det([1,1,1;borderX(1),borderX(2),borderX(3);borderY(1),borderY(2),borderY(3)])*det([1,1,1;borderX(1),borderX(2),borderX(4);borderY(1),borderY(2),borderY(4)]);
@@ -131,6 +136,7 @@ end
 
 
 function connected = isconnected(edges, node1, node2)
+% Find wether two nodes are connected
 i=1;
 connected = 0;
 while ( connected == 0 && i<size(edges,3))
@@ -146,6 +152,7 @@ end
 end
 
 function [realPath,cost] = dijkstra(start,target,randNodes,map)
+% Dijkstra's algorithm to find shortest path
 i =1;
 s =1;
 t =2;
@@ -231,31 +238,35 @@ cost = dist(t);
 
 end
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 function [path, estBot,botSim,randCord,steps,particles,convergeError]= findLocation(map,steps,botSim,estBot,particles,partWeight,num,target,modifiedMap,nrGraph,path)
+% Inputs:
+% map - original map
+% steps - how many turns did we take, if it is 0 we do relocalization and resampling of particles
+% botSim - the real robot
+% estBot - estimated robot
+% particles
+% partWeight - weight of the particles
+% num -
+% target 
+% modifiedMap - modifications to the map
+% nrGraph - nr of random nodes we generate to create a graph for the path
+% path - path is not chngest unless step = 0
+% 
+% Output:
+% path
+% estBot
+% botSim
+% randCord - coordonates of the nodes in the map
+% steps
+% particles
+% convergeError - error of conversion
+
 convergeError = 0;
-maxNumOfIterations = 40; % KEEP THIS!
+maxNumOfIterations = 40; % Number of iterations until we try to converge
 var = 5; % variance for Gussian
 sqrt2PiVar = sqrt(2*pi*var);
 damping = 0.000000001; %damping factor
-mindist = 1;
+mindist = 1; % minimum distance to mean coordonates to declare the localisation converged
 converged =0; %The filter has not converged yet
 n = 0;
 randCord = zeros(2, nrGraph); %random coordonates on the map to find shortest path
@@ -269,7 +280,7 @@ scan = botSim.ultraScan();
 
 for j=1:length(scan) 
     if (botSim.insideMap() ~= 1 || convergeError ==1 || scan(j) < 3)
-        % If close to the border or didn't converge or ouside resample it
+        % If close to the border, didn't converge or ouside resample it
         steps = 0;
         for i = 1:num
             particles(i).randomPose(0); %spawn the particles in random locations
@@ -316,9 +327,7 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
         particles(i).setBotPos([resPart(i,1), resPart(i,2)]);
         particles(i).setBotAng(resPart(i,3));
     end
-    
-    
-    
+  
     %% Write code to check for convergence
     for i = 1:num
         partPos(:,i) = [particles(i).getBotPos() particles(i).getBotAng()];
@@ -330,8 +339,8 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
         dist(:,i) = [abs(partPos(1,i)-meanPosX) abs(partPos(2,i)-meanPosY)];
     end
     
-    distX = sum(dist(1,:)<mindist); %nr of paricles that are withing distX (2)
-    distY = sum(dist(2,:)<mindist); %nr of paricles that are withing distY (2)
+    distX = sum(dist(1,:)<mindist); %nr of paricles that are within distX (2)
+    distY = sum(dist(2,:)<mindist); %nr of paricles that are within distY (2)
     
     if (distX>(num*0.9) && distY>(num*0.9)) % If 90% of the paricles are within mindist it converged
         converged = 1;
@@ -392,6 +401,8 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
             
             connected = isconnected(edges,start,target);
             % Find shortest path
+            % If start and target are connected, that is the shortest path,
+            % otherwise call dijkstra's algorithm
             path = [];
             if connected
                 path = [start;target];
@@ -399,6 +410,7 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
                 [path,len] = dijkstra(start,target,randCord,map);
             end
             
+            % This is displayed if you relocalize
             botSim.drawBot(10,'g');
             estBot.drawBot(10,'b');
             for i = 1:size(path,2)-1
@@ -411,6 +423,7 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
         
         steps = steps+1;
         
+        % Display where you are in every 10 steps
         if mod(maxNumOfIterations,10)== 0
             botSim.drawBot(3,'g');
             estBot.drawBot(3,'b');
@@ -419,7 +432,7 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
     
     
     %% Write code to take a percentage of your particles and respawn in randomised locations (important for robustness)
-    perc = 0.20*num;
+    perc = 0.15*num;
     for i=1:perc
         particles(randi(num)).randomPose(0);
     end
@@ -443,7 +456,7 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
     
 end
 if converged == 0
-    error = "Did not converge, ERROR!"
+    error = "Did not converge, Retry!"
     convergeError = 1;
 else
     convergeError = 0;
