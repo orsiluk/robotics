@@ -2,9 +2,6 @@ function [botSim] = localise(botSim,map,target)
 %This function returns botSim, and accepts, botSim, a map and a target.
 %LOCALISE Template localisation function
 
-% UltraScan Returns returns two arrays, one with the distances and one
-% with the crossing points of the scan rays.'
-
 
 %% setup code
 %you can modify the map to take account of your robots configuration space
@@ -67,9 +64,6 @@ while notThere == 1
     move = min(3,distance(next, start));
     
     %% Drawing
-    %only draw if you are in debug mode or it will be slow during marking
-    %         pred = BotSim(modifiedMap);
-    %         pred.setScanConfig(generateScanConfig(pred,6));
     
     if botSim.debug()
         %         hold off; %the drawMap() function will clear the drawing when hold is off
@@ -80,19 +74,9 @@ while notThere == 1
         end
         plot(start(1,1),start(1,2), 'r+')
         plot(target(1,1),target(1,2), 'g+')
-        %         for i = 3:nrGraph
-        %             if randCord(:,i) ~= [-1 -1]
-        %                 plot(randCord(1,i), randCord(2,i), 'b*')
-        %             end
-        %         end
-        
-        %         botSim.drawBot(30,'g'); %draw robot with line length 30 and green
-        %         estBot.drawBot(5,'c');
-        %         drawnow;
     end
     
     botSim.turn(turn); %turn the real robot.
-    %         botSim.drawBot(5,'c');
     botSim.move(move); %move the real robot. These movements are recorded for marking
     estBot.turn(turn);
     estBot.move(move);
@@ -122,14 +106,11 @@ function ang = setMeanAng(botSim,estBot)
 ang = 0;
 botScan = botSim.ultraScan();
 minim = [10000 10000 10000 10000 10000 10000];
-%     estScan = zeros(
 for i=1:360
-    %     estBot.turn(deg2rad(1));
     estBot.setBotAng(i*pi/180);
     diff=abs(estBot.ultraScan()-botScan);
     if diff<minim
         minim = diff;
-        %         ang = deg2rad(i);
         ang = i*pi/180;
     end
 end
@@ -165,7 +146,6 @@ end
 end
 
 function [realPath,cost] = dijkstra(start,target,randNodes,map)
-%     disp('in this mother fucking functions')
 i =1;
 s =1;
 t =2;
@@ -173,14 +153,6 @@ t =2;
 for j=1: size(randNodes,2)
     if randNodes(:,j) ~= [-1,-1]
         nodes(:,i) =randNodes(:,j);
-        
-        %             if randNodes(:,j) == start
-        %                 s = i;
-        %             end
-        %             if randNodes(:,j) == target
-        %                 t = i;
-        %             end
-        
         i = i+1;
     end
     
@@ -188,25 +160,22 @@ end
 n=size(nodes,2);
 mapShape = size(map);
 
-S(1:n) = 0;
+nodeSet(1:n) = 0;
 dist = Inf(n, 1);
 dist(s) = 0;
 prev(1:n) = n+1;
-%     disp('just before sthe while loop ');
-%     disp(sum(S));
-while sum(S)~=n %not all nodes were visited
-    %         disp('went into this crap ');
-    candidate=[];
+
+while sum(nodeSet)~=n %not all nodes were visited
+    option=[];
     for i=1:n
-        if S(i)==0
-            candidate=[candidate, dist(i)];
+        if nodeSet(i)==0
+            option=[option, dist(i)];
         else
-            candidate=[candidate, inf];
+            option=[option, inf];
         end
     end
-    [place, val]=min(candidate);
-    %         disp(candidate);
-    S(val)=1;
+    [place, val]=min(option);
+    nodeSet(val)=1;
     if val == 2
         break;
     end
@@ -250,19 +219,11 @@ end
 shortestpath = t;
 
 while shortestpath(1) ~= s
-    %     if prev(shortestpath(1))<=n
-    
     shortestpath=[prev(shortestpath(1)), shortestpath];
-    
-    %     else
-    %         errorMessage = "--------There is no path ------!"
-    %     end
 end
 
 realPath = zeros(length(shortestpath), 2, 1);
-%     disp('gets here')
 for i = 1 : length(shortestpath)
-    %         disp('in fuckking loop');
     realPath(i, :) = nodes(:,shortestpath(i));
 end
 
@@ -305,44 +266,20 @@ dist = zeros(2, num);
 partPos = zeros(3, num);
 
 scan = botSim.ultraScan();
-for i=1:length(scan)
-    if (botSim.insideMap() ~= 1 || convergeError ==1)
+
+for j=1:length(scan) 
+    if (botSim.insideMap() ~= 1 || convergeError ==1 || scan(j) < 3)
+        % If close to the border or didn't converge or ouside resample it
         steps = 0;
         for i = 1:num
-            %         particles(i) = BotSim(modifiedMap);  % each particle should use the same
-            % map as the botSim object
             particles(i).randomPose(0); %spawn the particles in random locations
-            %         particles(i).setScanConfig(generateScanConfig(particles(i),6));
             partPos(:,i) = [particles(i).getBotPos() particles(i).getBotAng()];
-            %     particles(i).drawBot(3);
+            particles(i).setScanConfig(generateScanConfig(particles(i),6));
         end
         
         break
     end
-    
-    if scan(i) < 3
-        steps = 0;
-        for i = 1:num
-%             particles(i) = BotSim(modifiedMap);  % each particle should use the same
-            % map as the botSim object
-            particles(i).randomPose(0); %spawn the particles in random locations
-            particles(i).setScanConfig(generateScanConfig(particles(i),6));
-            partPos(:,i) = [particles(i).getBotPos() particles(i).getBotAng()];
-            %     particles(i).drawBot(3);
-        end
-    end
 end
-
-% if steps == 0
-%     for i = 1:num
-% %         particles(i) = BotSim(modifiedMap);  % each particle should use the same
-%         % map as the botSim object
-%         particles(i).randomPose(0); %spawn the particles in random locations
-% %         particles(i).setScanConfig(generateScanConfig(particles(i),6));
-%         partPos(:,i) = [particles(i).getBotPos() particles(i).getBotAng()];
-%         %     particles(i).drawBot(3);
-%     end
-% end
 
 while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
     n = n+1; %increment the current number of iterations
@@ -396,13 +333,11 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
     distX = sum(dist(1,:)<mindist); %nr of paricles that are withing distX (2)
     distY = sum(dist(2,:)<mindist); %nr of paricles that are withing distY (2)
     
-    if (distX>(num*0.9) && distY>(num*0.9))
-        %     if (distX>(num*0.8) && distY>(num*0.8))
+    if (distX>(num*0.9) && distY>(num*0.9)) % If 90% of the paricles are within mindist it converged
         converged = 1;
         estBot.setBotPos([meanPosX,meanPosY]);
         meanAng = setMeanAng(botSim,estBot);
         estBot.setBotAng(meanAng);
-        drawnow;
         
         if steps == 0
             %% Create a graph inside the map which contains the target
@@ -448,7 +383,6 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
                         end
                         if ~crashAndBurn
                             l = l+1;
-                            %edges(:,l)= [randCord(1,j),randCord(2,j),randCord(1,k),randCord(2,k), pdist([randCord(:,j) randCord(:,k)],'euclidean')];
                             edges(:,:,l) = [[randCord(1,j),randCord(2,j)];[randCord(1,k),randCord(2,k)]];
                             
                         end
@@ -465,20 +399,22 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
                 [path,len] = dijkstra(start,target,randCord,map);
             end
             
-            botSim.drawBot(30,'g');
-            estBot.drawBot(30,'b');
+            botSim.drawBot(10,'g');
+            estBot.drawBot(10,'b');
             for i = 1:size(path,2)-1
                 line(path(:,i),path(:,i+1));
-                drawnow;
             end
             plot(target(1,1),target(1,2), 'r*')
             
-            drawnow;
+%             drawnow;
         end
         
         steps = steps+1;
-        botSim.drawBot(5,'g');
-        estBot.drawBot(5,'b');
+        
+        if mod(maxNumOfIterations,10)== 0
+            botSim.drawBot(3,'g');
+            estBot.drawBot(3,'b');
+        end
     end
     
     
@@ -493,7 +429,7 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
     
     % if it is not converged, just move around a bit to find the bot
     if converged == 0
-        turn = 1;
+        turn = 0.5;
         move = rand(2);
         botSim.turn(turn); %turn the real robot.
         botSim.move(move); %move the real robot. These movements are recorded for marking
@@ -507,10 +443,10 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
     
 end
 if converged == 0
-    disp("Did not converge, ERROR!");
+    error = "Did not converge, ERROR!"
     convergeError = 1;
 else
-    convergeError =0;
+    convergeError = 0;
 end
 
 end
