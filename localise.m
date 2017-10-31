@@ -290,7 +290,7 @@ end
 
 function [path, estBot,botSim,randCord,steps,particles,convergeError]= findLocation(map,steps,botSim,estBot,particles,partWeight,num,target,modifiedMap,nrGraph,path)
 convergeError = 0;
-maxNumOfIterations = 50;
+maxNumOfIterations = 40; % KEEP THIS!
 var = 5; % variance for Gussian
 sqrt2PiVar = sqrt(2*pi*var);
 damping = 0.000000001; %damping factor
@@ -402,9 +402,6 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
         estBot.setBotPos([meanPosX,meanPosY]);
         meanAng = setMeanAng(botSim,estBot);
         estBot.setBotAng(meanAng);
-        
-        botSim.drawBot(5,'g');
-        estBot.drawBot(5,'b');
         drawnow;
         
         if steps == 0
@@ -480,11 +477,13 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
         end
         
         steps = steps+1;
+        botSim.drawBot(5,'g');
+        estBot.drawBot(5,'b');
     end
     
     
     %% Write code to take a percentage of your particles and respawn in randomised locations (important for robustness)
-    perc = 0.15*num;
+    perc = 0.20*num;
     for i=1:perc
         particles(randi(num)).randomPose(0);
     end
@@ -494,8 +493,8 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
     
     % if it is not converged, just move around a bit to find the bot
     if converged == 0
-        turn = 0.5;
-        move = 1;
+        turn = 1;
+        move = rand(2);
         botSim.turn(turn); %turn the real robot.
         botSim.move(move); %move the real robot. These movements are recorded for marking
         estBot.turn(turn); %turn the estimated robot.
@@ -510,5 +509,8 @@ end
 if converged == 0
     disp("Did not converge, ERROR!");
     convergeError = 1;
+else
+    convergeError =0;
 end
+
 end
